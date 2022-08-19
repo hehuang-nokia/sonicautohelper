@@ -200,7 +200,7 @@ class Connection(object):
                    "sent: {}\n"
                    "get: {}\n"
                    "timeout is {}\n".format(str(e), send_str, self.fd.before, timeout))
-            raise ValueError ("TIME OUT !!! CANNOT FIND PROMPT")
+            raise ValueError("TIME OUT !!! CANNOT FIND PROMPT")
 
     def __del__(self):
         if self.fd is not None:

@@ -16,6 +16,8 @@ gb_display = None
 gb_scripts = []
 gb_config = {} #after loading an ini file, things will be put in this dict shared by everyone
 gb_test_result_brief = []
+gb_logDisplayPid = None
+gb_unbuffer_stdout = None
 # this loads first... then ini file
 
 #system wise global...

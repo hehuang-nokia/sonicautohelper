@@ -8,7 +8,7 @@ from .logger import MSG
 
 #expect_prompt=[connection._DEFAULT_LOGIN,connection._DEFAULT_PASSWD,connection._DEFAULT_PROMPT]
 class Device(object):
-    def __init__(self, ip_str, uname, passwd, port="", usessh=True, prompt=None):
+    def __init__(self, ip_str, uname=None, passwd=None, port="", usessh=True, prompt=None):
         self.ip = ip_str
         self.pid = -1
         if uname == None or passwd == None:
@@ -16,7 +16,8 @@ class Device(object):
 
         if port:
             usessh = False
-
+        self.usessh = usessh
+        self.zombie_device = True
         if usessh:
             try:
                 self.connection = Connection()
@@ -24,6 +25,7 @@ class Device(object):
                 self.mp = connection._DEFAULT_PROMPT
                 self.pid = self.connection.pid
                 MSG.okgreen("SSH connection succeeded! pid = {}".format(self.pid))
+                self.zombie_device = False
             except KeyboardInterrupt:
                 raise KeyboardInterrupt
             except pxssh.ExceptionPxssh as e:
@@ -47,6 +49,7 @@ class Device(object):
                 self.connection._sendandexpect(passwd, self.mp)
                 #self.connection._sendandexpect("", self.mp)
                 MSG.okgreen("Telnet connection succeeded! pid = {}".format(self.pid))
+                self.zombie_device = False
             except KeyboardInterrupt:
                 raise KeyboardInterrupt
             except:
@@ -86,7 +89,10 @@ class Device(object):
         if self in share.gb_device_mgr:
             share.gb_device_mgr.remove(self)
 
-    def sne(self, send_str, prompt=None, timeout=connection.TTIMEOUT, sendonly=False):
+    def sne(self, send_str="\n", prompt=None, timeout=connection.TTIMEOUT, sendonly=False):
+        if self.zombie_device:
+            MSG.fail("There is no usable connection to send")
+            return None
         try:
             if sendonly:
                 timeout = 1 #send only is not send only... we sometimes need the return...
@@ -106,14 +112,17 @@ class Device(object):
         except:
             if sendonly == False:
                 MSG.fail ("Yes! TIMEOUT!\n")
-                MSG.okblue(self.connection.fd.before)
+                MSG.okblue(self.connection.fd.before.decode("ascii", "ignore"))
 
                 if self not in share.gb_device_mgr:
                     MSG.fail("Connection is down (mgr). Open a new one!")
-
+                return self.connection.fd.before.decode("ascii", "ignore")
             else:
-                MSG.okgreen ("Not really! Check it yourself!")
-            return self.connection.fd.before
+                sendonlyres = self.connection.fd.before.decode("ascii", "ignore")
+                self.connection._send("\n")
+                self.connection._expect("\n")#clear before buffer
+                MSG.okgreen("Not really! Check it yourself!")
+                return sendonlyres
 
     def stoplog(self):
         try:
@@ -128,6 +137,9 @@ class Device(object):
             MSG.fail("resuming logging failed: {}".format(e))
 
     def hijack(self, escape='^'):
+        if self.zombie_device:
+            MSG.fail("There is no usable connection")
+            return None
         MSG.okblue("\nUse the connection here!")
         MSG.warning("Type '^' to escape ")
         try:
@@ -136,7 +148,10 @@ class Device(object):
             # except:
             #     self.connection.fd.logfile = self.connection.log_f
             #self.stoplog()
+            if share.gb_unbuffer_stdout:
+                sys.stdout = share.gb_unbuffer_stdout
             self.connection.fd.interact(escape_character=escape)
+            sys.stdout = share.gb_unbuffer_stdout.original
         except:
             e = sys.exc_info()[0]
             MSG.fail("hijacking error = {} ".format(e))

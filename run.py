@@ -27,7 +27,8 @@ sys.path.append(os.path.join(source_dir, "script/configuration"))
 
 class mystdout(object):
     '''
-    write immediately to 2 places
+    write immediately to 2 places, disable output buffering (Unbuffered),
+    maybe try  ?  python -u (or #!/usr/bin/env python -u etc.)
     '''
     def __init__(self, stream):
        self.stream = stream
@@ -57,6 +58,8 @@ from core.connection import Connection
 from core.device import Device
 from core.logger import MSG
 from lib.display import remove_special_char
+from lib.display import display
+from lib.display import _openWindow
 
 #global flags
 _flag_goto_interact = True
@@ -81,6 +84,7 @@ def _initLogfiles():
 
     user_log_file = open(user_log_file_name, 'w')
     sys.stdout = mystdout(user_log_file)
+    share.gb_unbuffer_stdout = sys.stdout
 
     if share.gb_terminal_io_logfile_name is None or share.gb_terminal_io_logfile_name == "":
         share.gb_terminal_io_logfile_name = user_log_file_name
@@ -91,39 +95,6 @@ def _initLogfiles():
         share.gb_logfile = sys.stdout
 # open a new x window
 # os.system("gnome-terminal -e 'bash -c \"tail -f {}; exec bash\"'".format(logfile_name))
-def _openWindow():
-    # env = os.environ
-    # #workaround for accessibility warning bug
-    # env["NO_AT_BRIDGE"] = str(1)
-    # #make sure you terminate all background stuff
-    # os.system('eval "tmphh() { \\$(which gnome-terminal) \\"\\$@\\" 2>&1 | tr -d \'\\r\' '
-    #           '| grep -v \\"GLib-GIO-CRITICAL\\|accessibility bus\\|stop working with a future version\\"; }" ' +
-    #           "; trap '' 2 ; tmphh -e 'bash -c \"tail -f {} 2> /dev/null\"' &".format(share.gb_logfile_name))
-    # #os.system("gnome-terminal -e 'bash -c \"tail -f {} 2> /dev/null\"' &".format(share.gb_logfile_name))
-
-    os.system(f"python ./lib/display.py {share.gb_logfile_name}")
-
-
-def display():
-    try:
-        if share.gb_display is not None:
-            if not share.gb_display.is_alive():
-                #register a new one
-                log_thread = threading.Thread(target=_openWindow)
-                log_thread.start()
-                share.gb_display = log_thread
-            else:
-                share.gb_display.start()
-
-            for _ in range(100):
-                #print(chr(27) + "[2J"  + "Starting:" + str(_+1)+"%")
-                sys.stdout.write('\r' + "Initializing:  " + str(_ + 1) + "%")
-                sys.stdout.flush()
-                time.sleep(0.05)
-    except KeyboardInterrupt:
-        raise KeyboardInterrupt
-    except:
-        MSG.warning("Already opened!")
 
 def _commandline_arg():
 
@@ -232,6 +203,7 @@ def _prepare_log():
         with open(share.gb_terminal_io_logfile_name, 'r') as f:
             lines = f.readlines()
             for line in lines:
+                line = re.sub(r"Initializing:\s+\d*\%", "", line)
                 line = remove_special_char(line)
                 newlines.append(line)
 
@@ -242,6 +214,7 @@ def _prepare_log():
             os.system("mv {} {}".format(share.gb_terminal_io_logfile_name, share.gb_target_log_name))
 
 def goodbye():
+    display(False)
     _prepare_log()
     #print "\nSee you later!"
     _clearall()
@@ -260,10 +233,12 @@ def goto_interact():
             #goto_interact()
             goodbye()
 
+        sys.stdout = share.gb_unbuffer_stdout.original
         code.interact(banner="\n\nVersion = {}\n\nAll libs have been imported\n"
                              "Variables should be localized already\n"
                              "Ctrl-C to exit\n\n\n".format(share.gb_config['version']),
                       local=globals())
+
 
 def signal_handler(signal_number):
     def __decorator (function ):

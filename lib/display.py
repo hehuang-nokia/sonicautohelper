@@ -5,7 +5,59 @@ import tkinter as tk
 import tkinter.font
 import sys
 import re
+from core import share
+from core.logger import MSG
+import threading
+import os
+import subprocess
+import signal
+import time
 # total = len(sys.argv)
+
+def _openWindow():
+    # env = os.environ
+    # #workaround for accessibility warning bug
+    # env["NO_AT_BRIDGE"] = str(1)
+    # #make sure you terminate all background stuff
+    # os.system('eval "tmphh() { \\$(which gnome-terminal) \\"\\$@\\" 2>&1 | tr -d \'\\r\' '
+    #           '| grep -v \\"GLib-GIO-CRITICAL\\|accessibility bus\\|stop working with a future version\\"; }" ' +
+    #           "; trap '' 2 ; tmphh -e 'bash -c \"tail -f {} 2> /dev/null\"' &".format(share.gb_logfile_name))
+    # #os.system("gnome-terminal -e 'bash -c \"tail -f {} 2> /dev/null\"' &".format(share.gb_logfile_name))
+
+    #os.system(f"python ./lib/display.py {share.gb_logfile_name}")
+    cmd = f"python ./lib/display.py {share.gb_logfile_name}"
+    try:
+        proc = subprocess.Popen(cmd, shell=True, start_new_session=True)
+        share.gb_logDisplayPid = proc.pid
+    except (ValueError, subprocess.TimeoutExpired, subprocess.SubprocessError):
+        MSG.fail("Failed to open a new window")
+
+
+def display(on=True):
+    if not on:
+        if share.gb_logDisplayPid:
+            os.killpg(share.gb_logDisplayPid, signal.SIGTERM)
+            share.gb_logDisplayPid = None
+    else:
+        try:
+            if share.gb_display is not None:
+                if not share.gb_display.is_alive():
+                    #register a new one
+                    log_thread = threading.Thread(target=_openWindow)
+                    log_thread.start()
+                    share.gb_display = log_thread
+                else:
+                    share.gb_display.start()
+
+                for _ in range(100):
+                    #print(chr(27) + "[2J"  + "Starting:" + str(_+1)+"%")
+                    sys.stdout.write('\r' + "Initializing:  " + str(_ + 1) + "%")
+                    sys.stdout.flush()
+                    time.sleep(0.05)
+        except KeyboardInterrupt:
+            raise KeyboardInterrupt
+        except:
+            MSG.warning("Already opened!")
 
 def remove_special_char(line):
     # todo this is not the best regex
