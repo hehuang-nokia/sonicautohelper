@@ -97,7 +97,7 @@ class Textwin(ttk.Frame):
     def refresh(self):
         if not self._stopped:
             self.txt.delete('1.0', tk.END)
-            with open(lgfilename, 'r') as f:
+            with open(lgfilename, 'r', encoding="ISO-8859-1") as f:
                 lines = f.readlines()
                 for line in lines:
                     line = remove_special_char(line)

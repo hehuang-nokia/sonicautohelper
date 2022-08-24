@@ -5,6 +5,8 @@ import re
 import time
 from . import share
 from .logger import MSG
+from pexpect import pxssh
+import subprocess
 
 #expect_prompt=[connection._DEFAULT_LOGIN,connection._DEFAULT_PASSWD,connection._DEFAULT_PROMPT]
 class Device(object):
@@ -18,8 +20,13 @@ class Device(object):
             usessh = False
         self.usessh = usessh
         self.zombie_device = True
+        self.lastprompt = True
         if usessh:
             try:
+                cmd = f'cd ~ ;ssh-keygen -f "./.ssh/known_hosts" -R "{ip_str}" '
+                res = subprocess.run(cmd, shell=True, capture_output=True)
+                if res.returncode != 0:
+                    MSG.fail("Failed to reset knownhost list")
                 self.connection = Connection()
                 self.connection._ssh(ip_str, uname, passwd)
                 self.mp = connection._DEFAULT_PROMPT
@@ -92,6 +99,7 @@ class Device(object):
     def sne(self, send_str="\n", prompt=None, timeout=connection.TTIMEOUT, sendonly=False):
         if self.zombie_device:
             MSG.fail("There is no usable connection to send")
+            self.lastprompt = False
             return None
         try:
             if sendonly:
@@ -100,16 +108,20 @@ class Device(object):
                 pr = self.mp
             else:
                 pr = prompt
+            self.lastprompt = True
             return self.connection._sendandexpect(send_str, pr, timeout)
 
         except IOError as error:
+            self.lastprompt = False
             if str(error) == "connection down":
                 MSG.fail("Connection is down (connection). Open a new one!")
                 self.__del__()
                 return "INVALID OUTPUT"
         except KeyboardInterrupt:
+            self.lastprompt = False
             raise KeyboardInterrupt
         except:
+            self.lastprompt = False
             if sendonly == False:
                 MSG.fail ("Yes! TIMEOUT!\n")
                 MSG.okblue(self.connection.fd.before.decode("ascii", "ignore"))
@@ -119,8 +131,12 @@ class Device(object):
                 return self.connection.fd.before.decode("ascii", "ignore")
             else:
                 sendonlyres = self.connection.fd.before.decode("ascii", "ignore")
-                self.connection._send("\n")
-                self.connection._expect("\n")#clear before buffer
+                if len(sendonlyres) > 1000:
+                    self.connection._send("ReSettingBuffer")
+                    try: #sometimes it cannot be found. no big deal... it is just to clear the buff
+                        self.connection._expect(b"ReSettingBuffer",timeout=1)#clear before buffer
+                    except:
+                        pass
                 MSG.okgreen("Not really! Check it yourself!")
                 return sendonlyres
 
