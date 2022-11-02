@@ -3,20 +3,27 @@ from nokia.util import *
 
 args = share.gb_args
 
-
-consip = share.gb_config['console_ip']
-consp = share.gb_config['console_port']
-dupip = share.gb_config['dut_ip']
+try:
+    consip = share.gb_config['console_ip']
+    dutip = share.gb_config['dut_ip']
+    consp = share.gb_config['console_port']
+except:
+    pass
 
 if 'pswd' in share.gb_config:
     pswd = share.gb_config['pswd']
 else:
     pswd = None
 
-if "con" in args:
-    f = M0(consip, passwd=pswd, port=consp)
+if 'proxy' in share.gb_config:
+    proxy = share.gb_config['proxy']
 else:
-    f = M0(dupip)
+    proxy = None
+
+if "con" in args:
+    f = M0(ip_str=consip, passwd=pswd, port=consp, proxy=proxy)
+else:
+    f = M0(dutip, passwd=pswd)
 
 f.sne("show version")
 

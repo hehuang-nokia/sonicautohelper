@@ -37,7 +37,7 @@ explain_args_option = [
     "   -l <file>, run a list of scripts",
     "   -o, run and finish. do not enter shell",
     "   -n, do not show the display window",
-    "   -g <args as string>, args for scripts; UNUSED FUNCTION",
+    "   -g <args as string>, args for scripts",
     "   -i <ini file name>, ini file relative to /script/configuration/",
     "   -s <section name>, section in ini file"
 ]
