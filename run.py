@@ -92,6 +92,8 @@ def _initLogfiles():
         share.gb_terminal_io_logfile = user_log_file
 
     if run_only and run_show_window_off:
+        #TODO ... it seems bash mode is not working ..
+        MSG.warning("using modified stdout")
         share.gb_logfile = sys.stdout
 # open a new x window
 # os.system("gnome-terminal -e 'bash -c \"tail -f {}; exec bash\"'".format(logfile_name))

@@ -126,6 +126,14 @@ class Connection(object):
         self.ip = None
         self.pid = -1
 
+    def _bash(self):
+        self.isssh = False
+        self.fd = spawn("bash", maxread=99999)
+        #todo ... for some reason... bash does not like passing stdout here ......
+        self.fd.logfile_read = self.log_f
+        self.pid = self.fd.pid
+        Connection.last_fd = [self]
+
     def _ssh(self, ip, uname='', pswd=''):
         self.isssh = True
         self.fd = pxssh.pxssh(maxread=99999)

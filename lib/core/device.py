@@ -10,7 +10,7 @@ import subprocess
 
 #expect_prompt=[connection._DEFAULT_LOGIN,connection._DEFAULT_PASSWD,connection._DEFAULT_PROMPT]
 class Device(object):
-    def __init__(self, ip_str, uname=None, passwd=None, port="", usessh=True, prompt=None):
+    def __init__(self, ip_str=None, uname=None, passwd=None, port="", usessh=True, prompt=None, local=False):
         self.ip = ip_str
         self.pid = -1
         if uname == None or passwd == None:
@@ -21,7 +21,20 @@ class Device(object):
         self.usessh = usessh
         self.zombie_device = True
         self.lastprompt = True
-        if usessh:
+
+        if local:
+            #todo ..weird cannot use stdout.
+            share.gb_logfile = None
+            self.connection = Connection()
+            self.connection._bash()
+            self.mp = connection._DEFAULT_PROMPT
+            self.pid = self.connection.pid
+            MSG.okgreen("Bash succeeded! pid = {}".format(self.pid))
+            self.zombie_device = False
+            self.sne("")
+            self.sne("alias ls='ls --color=never'")
+            self.sne("alias grep='grep --color=never'")
+        elif usessh:
             try:
                 cmd = f'cd ~ ;ssh-keygen -f "./.ssh/known_hosts" -R "{ip_str}" '
                 res = subprocess.run(cmd, shell=True, capture_output=True)
